@@ -1,10 +1,6 @@
-import { createBrowserClient } from '@supabase/ssr';
+// Only export client version here
+export { createClient } from './supabase/client';
 
-export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
-}
-
-export const supabase = createClient();
+// Default client export
+import { createClient as createBrowserClient } from './supabase/client';
+export const supabase = createBrowserClient();

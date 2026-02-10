@@ -1,16 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Logo } from '@/components/Logo';
 
 export default function AdminPanel() {
   const router = useRouter();
+  const supabase = createClient();
+
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [grants, setGrants] = useState<any[]>([]);
@@ -48,7 +51,7 @@ export default function AdminPanel() {
         .single();
 
       if (!userData?.is_admin) {
-        alert('Access denied');
+        alert('Access denied: Admin only');
         router.push('/dashboard');
         return;
       }
@@ -120,7 +123,7 @@ export default function AdminPanel() {
         reason: reason || 'Admin grant',
       });
 
-      alert(`✓ Access granted to ${email}`);
+      alert(`Access granted to ${email}`);
       setEmail('');
       setPlanType('solo');
       setCustomLimit('500');
@@ -173,7 +176,7 @@ export default function AdminPanel() {
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-black rounded"></div>
+              <Logo />
               <span className="font-semibold">SEO Advisor</span>
             </Link>
             <Badge variant="secondary" className="text-xs">
@@ -215,7 +218,7 @@ export default function AdminPanel() {
                 >
                   <option value="solo">Solo (50/month)</option>
                   <option value="pro">Pro (Unlimited)</option>
-                  <option value="team">Team (Unlimited, 5 users)</option>
+                  <option value="team">Team (Unlimited)</option>
                   <option value="custom">Custom</option>
                 </select>
               </div>
@@ -223,7 +226,7 @@ export default function AdminPanel() {
               {planType === 'custom' && (
                 <div>
                   <label className="text-sm font-medium block mb-2">
-                    Limit (scans/month)
+                    Limit
                   </label>
                   <Input
                     type="number"
@@ -250,9 +253,7 @@ export default function AdminPanel() {
               </div>
 
               <div>
-                <label className="text-sm font-medium block mb-2">
-                  Reason (optional)
-                </label>
+                <label className="text-sm font-medium block mb-2">Reason</label>
                 <Input
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
@@ -278,14 +279,12 @@ export default function AdminPanel() {
               <div className="space-y-3">
                 {grants.map((grant) => (
                   <div key={grant.id} className="p-3 border rounded-lg text-sm">
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between">
                       <div>
                         <div className="font-medium">{grant.user_email}</div>
                         <div className="text-xs text-slate-600">
                           {grant.plan_type}
                           {grant.custom_limit && ` (${grant.custom_limit}/mo)`}
-                          {' · '}
-                          {grant.duration.replace('_', ' ')}
                         </div>
                         <div className="text-xs text-slate-500">
                           {new Date(grant.granted_at).toLocaleDateString()}
@@ -318,40 +317,31 @@ export default function AdminPanel() {
             />
           </div>
 
-          <div className="overflow-x-auto">
-            <div className="w-full text-sm">
-              <div className="border-b pb-3 flex gap-8 font-medium">
-                <div className="flex-1">Email</div>
-                <div className="w-24">Plan</div>
-                <div className="w-20">Used</div>
-                <div className="w-20">Total</div>
-                <div className="w-32">Joined</div>
-              </div>
-              <div className="divide-y">
-                {filteredUsers.map((user) => (
-                  <div key={user.id} className="py-3 flex gap-8 items-center">
-                    <div className="flex-1">
-                      {user.email}
-                      {user.is_admin && (
-                        <Badge variant="secondary" className="ml-2 text-xs">
-                          Admin
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="w-24">
-                      <Badge>{user.plan?.toUpperCase() || 'FREE'}</Badge>
-                    </div>
-                    <div className="w-20">
-                      {user.scans_used_this_month || 0}
-                    </div>
-                    <div className="w-20">{user.total_scans_used || 0}</div>
-                    <div className="w-32 text-slate-600">
-                      {new Date(user.created_at).toLocaleDateString()}
-                    </div>
+          <div className="space-y-2">
+            {filteredUsers.map((user) => (
+              <div
+                key={user.id}
+                className="flex items-center justify-between p-3 border rounded-lg text-sm"
+              >
+                <div className="flex-1">
+                  {user.email}
+                  {user.is_admin && (
+                    <Badge variant="secondary" className="ml-2 text-xs">
+                      Admin
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <Badge>{user.plan?.toUpperCase() || 'FREE'}</Badge>
+                  <div className="text-xs text-slate-600">
+                    {user.scans_used_this_month || 0} used
                   </div>
-                ))}
+                  <div className="text-xs text-slate-600">
+                    {user.total_scans_used || 0} total
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
         </Card>
       </main>

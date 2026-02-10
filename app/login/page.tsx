@@ -1,26 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Logo } from '@/components/Logo';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const supabase = createClient();
 
-  useEffect(() => {
-    const checkUser = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) {
-        router.push('/dashboard');
-      }
-    };
-    checkUser();
-  }, [router]);
+  const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
 
   const handleGoogleLogin = async () => {
     setLoading(true);
@@ -33,8 +30,73 @@ export default function LoginPage() {
       });
 
       if (error) {
-        console.error('Error:', error.message);
-        alert('Failed to sign in. Please try again.');
+        console.error('Google auth error:', error);
+        alert('Failed to sign in: ' + error.message);
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      alert('An error occurred.');
+      setLoading(false);
+    }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name: name,
+              full_name: name,
+            },
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
+
+        if (error) {
+          alert('Sign up failed: ' + error.message);
+          setLoading(false);
+          return;
+        }
+
+        if (data.user) {
+          // Manually create user record if trigger fails
+          await supabase.from('users').upsert(
+            {
+              id: data.user.id,
+              email: data.user.email,
+              name: name,
+              plan: 'free',
+            },
+            { onConflict: 'id' },
+          );
+
+          alert(
+            'Sign up successful! Please check your email to verify your account.',
+          );
+          setIsSignUp(false);
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          alert('Sign in failed: ' + error.message);
+          setLoading(false);
+          return;
+        }
+
+        if (data.session) {
+          router.push('/dashboard');
+        }
       }
     } catch (err) {
       console.error('Error:', err);
@@ -48,14 +110,18 @@ export default function LoginPage() {
     <div className="min-h-screen bg-white flex items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <Link href="/" className="flex items-center justify-center gap-2 mb-12">
-          <div className="w-7 h-7 bg-black rounded"></div>
+          <Logo />
           <span className="font-semibold">SEO Advisor</span>
         </Link>
 
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold mb-2">Sign in</h1>
+          <h1 className="text-2xl font-bold mb-2">
+            {isSignUp ? 'Create account' : 'Sign in'}
+          </h1>
           <p className="text-sm text-slate-600">
-            Access your SEO analysis dashboard
+            {isSignUp
+              ? 'Start analyzing your SEO for free'
+              : 'Access your SEO analysis dashboard'}
           </p>
         </div>
 
@@ -63,12 +129,12 @@ export default function LoginPage() {
           onClick={handleGoogleLogin}
           disabled={loading}
           variant="outline"
-          className="w-full h-11 mb-6"
+          className="w-full h-11 mb-4"
         >
           {loading ? (
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin"></span>
-              Signing in...
+              Please wait...
             </span>
           ) : (
             <span className="flex items-center gap-3">
@@ -100,23 +166,83 @@ export default function LoginPage() {
             <div className="w-full border-t"></div>
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-2 text-slate-500">Coming soon</span>
+            <span className="bg-white px-2 text-slate-500">or</span>
           </div>
         </div>
 
-        <Button variant="outline" className="w-full h-11" disabled>
-          Continue with email
-        </Button>
+        <form onSubmit={handleEmailAuth} className="space-y-4">
+          {isSignUp && (
+            <div>
+              <label className="text-sm font-medium block mb-2">Name</label>
+              <Input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                required={isSignUp}
+              />
+            </div>
+          )}
 
-        <div className="mt-8 p-4 bg-slate-50 rounded-lg border">
-          <p className="text-xs text-slate-600">
-            <strong>Free trial:</strong> Get 5 free page scans when you sign up.
-            No credit card required.
-          </p>
+          <div>
+            <label className="text-sm font-medium block mb-2">Email</label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium block mb-2">Password</label>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              minLength={6}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full h-11 bg-black hover:bg-slate-800"
+            disabled={loading}
+          >
+            {loading
+              ? 'Please wait...'
+              : isSignUp
+                ? 'Create account'
+                : 'Sign in'}
+          </Button>
+        </form>
+
+        <div className="text-center mt-6">
+          <button
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-sm text-slate-600 hover:text-black"
+            type="button"
+          >
+            {isSignUp
+              ? 'Already have an account? Sign in'
+              : "Don't have an account? Sign up"}
+          </button>
         </div>
 
+        {isSignUp && (
+          <div className="mt-8 p-4 bg-slate-50 rounded-lg border">
+            <p className="text-xs text-slate-600">
+              <strong>Free trial:</strong> Get 5 free page scans when you sign
+              up. No credit card required.
+            </p>
+          </div>
+        )}
+
         <p className="text-xs text-center text-slate-500 mt-8">
-          By signing in, you agree to our{' '}
+          By continuing, you agree to our{' '}
           <a href="#" className="underline">
             Terms
           </a>{' '}

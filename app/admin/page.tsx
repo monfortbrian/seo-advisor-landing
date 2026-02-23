@@ -204,7 +204,7 @@ export default function AdminPanel() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="user@example.com"
+                  placeholder="johndoer@example.com"
                   required
                 />
               </div>

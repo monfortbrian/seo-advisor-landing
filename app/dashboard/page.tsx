@@ -32,6 +32,8 @@ export default function DashboardPage() {
     checkUser();
   }, []);
 
+
+
   const checkUser = async () => {
     try {
       const {
@@ -144,7 +146,7 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-6 py-12">
         <div className="mb-8">
           <h1 className="text-2xl font-bold mb-2">
-            Welcome, {userData?.name || user?.email?.split('@')[0] || 'there'}!
+            Welcome, {user?.email?.split('@')[0] || 'there'}!
             👋
           </h1>
           <p className="text-slate-600">Manage your SEO scans and account</p>
